@@ -1,4 +1,4 @@
-name: Build APK and Notify Discord
+name: Build APK and Notify Discord X
 
 on:
   push:
