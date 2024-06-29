@@ -106,7 +106,7 @@ jobs:
           retention-days: 5
           compression-level: 9
           path: "app/build/outputs/apk/google/alpha/app-google-alpha.apk"
-            
+
     - name: Upload APK to Discord and Telegram
       shell: bash
       run: |
@@ -281,29 +281,34 @@ jobs:
         fi
 
         # Format commit messages for Telegram
-        telegram_commit_messages=$(echo "$COMMIT_LOG" | sed 's/%0A/\n/g' | while read -r line; do
-          message=$(echo "$line" | sed -E 's/● (.*) ~(.*) \[֍\]\((.*)\)/● \1 ~\2 <a href="\3">֍<\/a>/')
-          message=$(echo "$message" | sed -E 's/\[#([0-9]+)\]\((https:\/\/github\.com\/[^)]+)\)/<a href="\2">#\1<\/a>/g')
-          echo "$message"
-        done)
-        telegram_commit_messages="<blockquote>${telegram_commit_messages}</blockquote>"
+telegram_commit_messages=$(echo "$COMMIT_LOG" | sed 's/%0A/\n/g' | while read -r line; do
+  message=$(echo "$line" | sed -E 's/● (.*) ~(.*) \[֍\]\((.*)\)/● \1 ~\2 [֍](\3)/')
+  message=$(echo "$message" | sed -E 's/\[#([0-9]+)\]\((https:\/\/github\.com\/[^)]+)\)/[#\1](\2)/g')
+  echo "$message"
+done)
+telegram_commit_messages="<blockquote>${telegram_commit_messages}</blockquote>"
 
-        # Upload APK to Telegram
-        if [ "$SKIP_BUILD" != "true" ]; then
-          APK_PATH="app/build/outputs/apk/google/alpha/app-google-alpha.apk"
-          response=$(curl -sS -f -X POST \
-            "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
-            -F "chat_id=${{ secrets.TELEGRAM_CHANNEL_ID }}" \
-            -F "document=@$APK_PATH" \
-            -F "caption=New Alpha-Build dropped 🔥
-        
-        Commits:
-        ${telegram_commit_messages}
-        version: ${VERSION}" \
-            -F "parse_mode=HTML")
-        else
-          echo "Skipping Telegram message and APK upload due to SKIP_BUILD being set to true"
-        fi
+# Format developer info for Telegram
+telegram_developers=$(echo "$developers" | while read -r line; do
+  echo "$line"
+done)
+telegram_developers="<blockquote>${telegram_developers}</blockquote>"
+
+# Construct caption for Telegram
+caption="New Alpha-Build dropped 🔥\n\nCommits:\n${telegram_commit_messages}\n\nDevelopers:\n${telegram_developers}\n\nVersion: ${VERSION}"
+
+# Upload APK to Telegram
+if [ "$SKIP_BUILD" != "true" ]; then
+  APK_PATH="app/build/outputs/apk/google/alpha/app-google-alpha.apk"
+  curl -F "chat_id=${{ secrets.TELEGRAM_CHANNEL_ID }}" \
+       -F "caption=${caption}" \
+       -F "parse_mode=HTML" \
+       -F "document=@$APK_PATH" \
+       https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
+else
+  echo "Skipping Telegram message and APK upload due to SKIP_BUILD being set to true"
+fi
+
         
       env:
         COMMIT_LOG: ${{ env.COMMIT_LOG }}
